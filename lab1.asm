@@ -9,6 +9,15 @@
 		"img_out.bmp"
 	buffer:
 		.space SYS_BUFFER_SIZE			# Tamanho do buffer 
+	textMenu:
+		.asciiz "Escolha uma das opções abaixo:\n\t[0] Sair\t[1] Blur\t[2] Edge Extractor\t[3] Thresholding\n" # Texto que sera mostrado no menu
+	cls: 
+		.asciiz "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" # espaçammento para parecer novo menu apos escolha do usuario
+	textMenuError:
+		.asciiz "\nOpção escolhida inválida, aperta '1' para continuar\n"
+
+	textTest:
+		.asciiz "\nOpção escolhida foi:"
 
 .text
 	main:
@@ -45,7 +54,7 @@
 				
 	jal		closeFile		
 	
-	j		fim	
+	j		menu	
 #######################################################################	
 	openFile:
 	li		$v0, 13
@@ -78,6 +87,54 @@
 	syscall
 	
 	jr		$ra
+
+#######################################################################
+	menu:
+	la $a0, cls   # carregar o espaçamento
+	li $v0, 4     # print do espaçamento
+	syscall
+	
+	la $a0, textMenu
+	syscall
+	
+	li $v0, 5    # Esperando resposta do usuario
+	syscall
+	
+	beq $v0, 0, fim  # Sai do programa
+	
+	beq $v0, 1, teste  # faz o Blur
+	#jal blue
+	
+	beq $v0, 2, teste  # faz o Edge Extractor
+	#jal edge
+	
+	beq $v0, 3, teste  #faz o Thresholding
+	#jal thresholding
+	
+	bgt $v0, 3, notOption
+#######################################################################
+	teste:
+	move $t0, $v0
+	li $v0, 4
+	la $a0, textTest
+	syscall
+	
+	li $v0, 1
+	move $a0, $t0
+	syscall
+	
+	b menu
+#######################################################################	
+	notOption:
+	li $v0, 4
+	la $a0, textMenuError
+	syscall
+	
+	li $v0, 5
+	syscall
+	
+	b menu
+	
 #######################################################################
 	fim:
 	li		$v0, 10
