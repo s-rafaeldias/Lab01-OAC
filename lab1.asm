@@ -19,6 +19,7 @@
 	textTest:
 		.asciiz "\nOpção escolhida foi:"
 
+
 .text
 	main:
 	# ---------------------------------------------
