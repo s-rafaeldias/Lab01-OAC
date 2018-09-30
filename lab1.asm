@@ -86,7 +86,8 @@
 	# Blue
 	lbu		$t4, 0($t1)
 	addu		$t3, $t3, $t4
-	sll		$t3, $t3, 8
+	#sll		$t3, $t3, 8
+	
 
 	sw		$t3, 0($t0)
 	
