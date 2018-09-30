@@ -1,8 +1,6 @@
 .eqv		IMAGE_SIZE		786486
 .eqv		NEW_IMAGE_SIZE	1048648
 .eqv		NUM_WORDS		262144
-#------------------------------------------------------------------------------------------------------------------------------------------------
-.#data  	0x10010000
 
 #------------------------------------------------------------------------------------------------------------------------------------------------
 # Static Memory
@@ -63,48 +61,46 @@
 	li		$v0, 14				# Prepara para leitura de arquivo 
 	syscall						# $v0 = number of characters read (0 if end-of-file, negative if error).	
 ##############################################################
-# Carrega em words	
-	la		$t0, img_body
-	la		$t1, img_original
-	li		$t7, NEW_IMAGE_SIZE
-	addi		$t1, $t1, 54			# Tira o header 54 bytes
+	# ---------------------------------------------
+	# Display Image
+	# Trecho responsável por mostrar a imagem no bitmap display
+	# Cada pixel da imagem no arquivo encontra-se no formato BBGGRR.
+	# Para mostrar no bitmap display, precisa estar no formato 0x00RRGGBB
+	# Obs.: A imagem está espelhada e invertida
+	# ---------------------------------------------
+	la		$t0, img_body			# $t0 = &img_body, bloco de memória que será mostrada no bitmap display
+	la		$t1, img_original		# $t1 = &img_original, bloco de memória com os dados lidos da imagem de entrada
+	
+	addi		$t1, $t1, 54			# Tira o header de 54 bytes da imagem
 	addi		$t2, $zero, 0			# Indice I de loop
 
 	loop:
-	addi		$t3, $zero, 0
+	addi		$t3, $zero, 0			# Zera o registrador $t3
 	
-	# Red
-	lbu		$t4, 2($t1)
-	addu		$t3, $t3, $t4
-	sll		$t3, $t3, 8
+	# Load Red
+	lbu		$t4, 2($t1)			# Carrega o valor de RED da img_original
+	addu		$t3, $t3, $t4			# Coloca o valor de RED no $t3
+	sll		$t3, $t3, 8			# Move o valor de RED para inserir a proxima cor no $t3
 	
-	# Green
-	lbu		$t4, 1($t1)
-	addu		$t3, $t3, $t4
-	sll		$t3, $t3, 8
+	# Load Green
+	lbu		$t4, 1($t1)			# Carrega o valor de GREEN da img_original
+	addu		$t3, $t3, $t4			# Coloca o valor de GREEN no $t3
+	sll		$t3, $t3, 8			# Move o valor de GREEN para inserir a proxima cor no $t3
 	
-	# Blue
-	lbu		$t4, 0($t1)
-	addu		$t3, $t3, $t4
-	#sll		$t3, $t3, 8
+	# Load Blue
+	lbu		$t4, 0($t1)			# Carrega o valor de BLUE da img_original
+	addu		$t3, $t3, $t4			# Coloca o valor de BLUE no $t3
 	
+	sw		$t3, 0($t0)			# Salva o pixel em img_body (formato: 0x00RRGGBB
+	
+	addi		$t1, $t1, 3			# Incrementa o endereço de img_original em 3 bytes
+	addi		$t0, $t0, 4			# Incrementa o endereço de img_body em 1 word
+	
+	addi		$t2, $t2, 1			# Incremente indice I do loop
+	
+	bne		$t2, NUM_WORDS, loop	# repete o Loop enquanto não inserir todas as words em img_body
 
-	sw		$t3, 0($t0)
-	
-	addi		$t1, $t1, 3
-	addi		$t0, $t0, 4
-	
-	
-	addi		$t2, $t2, 1
-	
-	bne		$t2, NUM_WORDS, loop
-##############################################################
-
-
-##############################################################
-	# Leitura do body
-	#jal		showDisplay
-	
+##############################################################	
 	# Abre o arquivo de saída
 	move		$a0, $s1 				# $a0 = address of null-terminated string containing filename
 	li		$a1, 1				# $a1 = flags (0 = read-only, 1 = write-only with create, 9 = write-only with create and append)
