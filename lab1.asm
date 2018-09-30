@@ -1,21 +1,20 @@
-.eqv		SYS_BUFFER_SIZE	786486
-
-.data
+.eqv		IMAGE_SIZE		786486
+.eqv		NEW_IMAGE_SIZE	1048648
+.eqv		NUM_WORDS		262144
 #------------------------------------------------------------------------------------------------------------------------------------------------
-# File
+.#data  	0x10010000
 
+#------------------------------------------------------------------------------------------------------------------------------------------------
+# Static Memory
+.data		0x10010000
+	img_body:
+		.space	NEW_IMAGE_SIZE	# body = imagem - header
+ 	img_original:
+		.space 	IMAGE_SIZE		# Tamanho do buffer 	
 	filein:
 		.asciiz	"img.bmp"
 	fileout:
-		.asciiz	"img_out.bmp"
-	img_original:
-		.space 	SYS_BUFFER_SIZE	# Tamanho do buffer 
-	img_header:
-		.space	54				# Tamanho do header
-	img_body:
-		.space	1048648			# body = imagem - header
-
-
+		.asciiz	"img_out.bmp"	
 #------------------------------------------------------------------------------------------------------------------------------------------------
 # Menu:	
 	textMenu:
@@ -57,13 +56,52 @@
 	syscall
 	move		$s2, $v0				# $s2 = File descriptor do arquivo de entrada
 	
-	# Leitura do arquivo de entrada
+	# Leitura do arquivo
 	move		$a0, $s2				# $a0 = file descriptor
 	la		$a1, img_original		# $a1 = address of input buffer
-	li		$a2, SYS_BUFFER_SIZE		# $a2 = maximum number of characters to read
+	li		$a2, IMAGE_SIZE		# $a2 = maximum number of characters to read
 	li		$v0, 14				# Prepara para leitura de arquivo 
-	syscall						# $v0 = number of characters read (0 if end-of-file, negative if error).
+	syscall						# $v0 = number of characters read (0 if end-of-file, negative if error).	
+##############################################################
+# Carrega em words	
+	la		$t0, img_body
+	la		$t1, img_original
+	li		$t7, NEW_IMAGE_SIZE
+	addi		$t1, $t1, 54			# Tira o header 54 bytes
+	addi		$t2, $zero, 0			# Indice I de loop
+
+	loop:
+	addi		$t3, $zero, 0
 	
+	# Red
+	lbu		$t4, 2($t1)
+	addu		$t3, $t3, $t4
+	sll		$t3, $t3, 8
+	
+	# Green
+	lbu		$t4, 1($t1)
+	addu		$t3, $t3, $t4
+	sll		$t3, $t3, 8
+	
+	# Blue
+	lbu		$t4, 0($t1)
+	addu		$t3, $t3, $t4
+	sll		$t3, $t3, 8
+
+	sw		$t3, 0($t0)
+	
+	addi		$t1, $t1, 3
+	addi		$t0, $t0, 4
+	
+	
+	addi		$t2, $t2, 1
+	
+	bne		$t2, NUM_WORDS, loop
+##############################################################
+
+
+##############################################################
+	# Leitura do body
 	#jal		showDisplay
 	
 	# Abre o arquivo de saída
@@ -75,8 +113,8 @@
 
 	# Escreve no arquivo de saída
 	move		$a0, $v0				# $a0 = file descriptor
-	la		$a1, img_header		# $a1 = address of output buffer
-	li		$a2, SYS_BUFFER_SIZE 	# $a2 = number of characters to write
+	la		$a1, img_body			# $a1 = address of output buffer
+	li		$a2, NEW_IMAGE_SIZE	# $a2 = number of characters to write
 	li		$v0, 15				# Prepara para escrita do arquivo de saida
 	syscall						# $v0 = number of characters written (negative if error)
 	move		$s3, $v0
@@ -92,36 +130,7 @@
 	#j		menu
 	j		fim	
 #######################################################################
-	showDisplay:
-	addi		$t0, $zero, 0
-	addi		$t2, $zero, SYS_BUFFER_SIZE
-	
-	loop:
-	# Carrega o byte de R
-	lb		$t1, img_original($t0)		
-	sb		$t1, img_body($t2)
-	addi		$t0, $t0, 1
-	addi		$t2, $t2, -1
-						
-	# Carrega o byte de G
-	lb		$t1, img_original($t0)		
-	sb		$t1, img_body($t2)
-	addi		$t0, $t0, 1
-	addi		$t2, $t2, -1
-		
-	# Carrega o byte de B
-	lb		$t1, img_original($t0)		
-	sb		$t1, img_body($t2)
-	addi		$t0, $t0, 1
-	addi		$t2, $t2, -1
-	
-	#addi		$t1, $zero, 0
-	#sb		$t1, img_body($t2)	
-	#addi		$t2, $t2, -1
-		
-	blt		$t1, SYS_BUFFER_SIZE	, loop
-	
-	jr		$ra
+
 
 #######################################################################
 	menu:
