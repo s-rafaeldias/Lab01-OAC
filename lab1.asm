@@ -63,7 +63,7 @@
 ##############################################################
 	# ---------------------------------------------
 	# Display Image
-	# Trecho responsável por mostrar a imagem no bitmap display
+	# Trecho responsável por mostrar a imagem raw no bitmap display
 	# Cada pixel da imagem no arquivo encontra-se no formato BBGGRR.
 	# Para mostrar no bitmap display, precisa estar no formato 0x00RRGGBB
 	# Obs.: A imagem está espelhada e invertida
@@ -100,6 +100,8 @@
 	
 	bne		$t2, NUM_WORDS, loop	# repete o Loop enquanto não inserir todas as words em img_body
 
+	jal		inverte_img
+
 ##############################################################	
 	# Abre o arquivo de saída
 	move		$a0, $s1 				# $a0 = address of null-terminated string containing filename
@@ -127,8 +129,35 @@
 	#j		menu
 	j		fim	
 #######################################################################
+	# ---------------------------------------------
+	# Inverte imagem
+	# Função de inverter a imagem no eixo vertical
+	# $t0 = indice da cabeça do array img_body
+	# $t1 = indice da ponta da cauda do array img_body
+	# Obs.: O valor inicial de $t2 vem do Display Image, que representa a quantidade de words
+	#          no array img_body 
+	# ---------------------------------------------
+	inverte_img:
+	addi		$t0, $zero, 0			# Começo do array, indice i = 0
+	mul		$t2, $t2, 4			# quantidade de words * 4 = indice do ultimo elemento do array
 
-
+	loop2:	
+	lw		$t3, img_body($t0)		
+	lw		$t4, img_body($t2)
+	
+	sw		$t3, img_body($t2)
+	sw		$t4, img_body($t0)
+	
+	addi		$t0, $t0, 4
+	addi		$t2, $t2, -4
+	
+	blt		$t0, $t2, loop2
+				
+	jr		$ra
+#######################################################################
+	espelha_img:
+	
+	jr		$ra
 #######################################################################
 	menu:
 	la $a0, cls   # carregar o espaçamento
