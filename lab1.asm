@@ -3,12 +3,16 @@
 .eqv		NUM_WORDS		262144
 
 #------------------------------------------------------------------------------------------------------------------------------------------------
-# Static Memory
-.data		
+# Heap
+.data		0x10010000
 	img_body:
 		.space	NEW_IMAGE_SIZE	# body = imagem - header
+ 	
+ .data	0x10210090
  	img_original:
 		.space 	IMAGE_SIZE		# Tamanho do buffer 	
+	size_img:
+		.word	0				# tamanho da imagem
 	filein:
 		.asciiz	"img.bmp"
 	fileout:
@@ -42,6 +46,7 @@
 	# $s1 = Arquivo de saída
 	# $s2 = File descriptor do arquivo de entrada
 	# $s3 = File descriptor do arquivo de saída
+	# $s4 = Quantidade de words no img_body
 	# ---------------------------------------------
 	la		$s0, filein			
 	la		$s1, fileout
@@ -99,8 +104,11 @@
 	addi		$t2, $t2, 1			# Incremente indice I do loop
 	
 	bne		$t2, NUM_WORDS, loop	# repete o Loop enquanto não inserir todas as words em img_body
+	
+	move		$s4, $t2				# $s4 = quantidade de words em img_body
 
 	jal		inverte_img
+	jal		espelha_img
 
 ##############################################################	
 	# Abre o arquivo de saída
@@ -139,7 +147,7 @@
 	# ---------------------------------------------
 	inverte_img:
 	addi		$t0, $zero, 0			# Começo do array, indice i = 0
-	mul		$t2, $t2, 4			# quantidade de words * 4 = indice do ultimo elemento do array
+	mul		$t2, $s4, 4			# quantidade de words * 4 = indice do ultimo elemento do array
 
 	loop2:	
 	lw		$t3, img_body($t0)		
@@ -155,7 +163,36 @@
 				
 	jr		$ra
 #######################################################################
-	espelha_img:
+	espelha_img:	
+	addi		$t0, $zero, 0			# contador de linhas
+#	la		$t1, img_body	
+	addi		$t2, $zero, 0			# inicio da linha
+	addi		$t3, $zero, 2044		# fim da linha
+	addi		$t7, $zero, 2048		
+
+	loop3:
+	addi		$t3, $t2, 2048
+		
+	sub_loop3:
+	lw		$t4, img_body($t2)
+	lw		$t5, img_body($t3)	
+	
+	sw		$t4, img_body($t3)
+	sw		$t5, img_body($t2)
+	
+	addi		$t2, $t2, 4	
+	addi		$t3, $t3, -4
+	
+	blt		$t2, $t3, sub_loop3
+	
+	
+	addi		$t0, $t0, 1	
+	mult		$t0, $t7
+	mflo		$t2
+	
+	addi		$t3, $t2, 2048
+	
+	blt		$t0, 512, loop3
 	
 	jr		$ra
 #######################################################################
