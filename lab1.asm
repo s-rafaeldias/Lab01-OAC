@@ -97,7 +97,6 @@
 	addu		$t3, $t3, $t4			# Coloca o valor de BLUE no $t3
 	
 	sw		$t3, 0($t0)			# Salva o pixel em img_body (formato: 0x00RRGGBB
-	
 	addi		$t1, $t1, 3			# Incrementa o endereço de img_original em 3 bytes
 	addi		$t0, $t0, 4			# Incrementa o endereço de img_body em 1 word
 	
@@ -109,6 +108,7 @@
 
 	jal		inverte_img
 	jal		espelha_img
+	jal 		menu
 
 ##############################################################	
 	# Abre o arquivo de saída
@@ -212,7 +212,7 @@
 	beq $v0, 1, teste  # faz o Blur
 	#jal blue
 	
-	beq $v0, 2, teste  # faz o Edge Extractor
+	beq $v0, 2, edge  # faz o Edge Extractor
 	#jal edge
 	
 	beq $v0, 3, teste  #faz o Thresholding
@@ -242,6 +242,47 @@
 	
 	b menu
 	
+##############################################################################################################################################	
+	edge:
+	
+	addi $t6,$zero,0 #Inicializa indice do loop
+	la $t0, img_body # Carrega endereco do inicio da imagem
+	
+	escala_cinza:
+	addi $t3,$zero,3 #Inicializa t2 com 3
+	addi $t2,$zero,0 #Inicializa t2 com 0
+	addi $t5,$zero,0 #Inicializa t5 com 0
+	
+	lbu $t1,0($t0) # t1 recebe a cor azul
+	add $t2,$t2,$t1
+	
+	lbu $t1,1($t0) # t1 recebe a cor verde
+	add $t2,$t2,$t1
+	
+	lbu $t1,2($t0) # t1 recebe a cor vermelha
+	add $t2,$t2,$t1
+	
+	div $t2,$t3 # calcula a media das cores
+	
+	mflo $t4 # pega o valor da divisao
+
+	addu $t5, $t5, $t4	# Coloca o valor do cinza no $t5
+	sll  $t5, $t5, 8	# Move o valor de Cinza para inserir a proxima cor no $t5
+	addu $t5,$t5 $t4	
+	sll $t5,$t5,8
+	addu $t5,$t5 $t4
+	
+	sw $t5,0($t0) # Altera o pixel original para um em escala cinza
+	
+        addi $t0, $t0, 4			# Incrementa o endereço de img_body em 1 word
+	addi $t6, $t6, 1			# Incremente indice I do loop
+	
+	bne $t6, NUM_WORDS, escala_cinza	# repete o Loop enquanto não inserir todas as words em img_body
+	
+	
+	
+	j fim
+		
 #######################################################################
 	fim:
 	li		$v0, 10
