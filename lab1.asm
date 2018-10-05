@@ -248,7 +248,8 @@
 	addi $t6,$zero,0 #Inicializa indice do loop
 	la $t0, img_body # Carrega endereco do inicio da imagem
 	
-	escala_cinza:
+	escala_cinza: #Aplica o Filtro cinza na imagem
+	
 	addi $t3,$zero,3 #Inicializa t2 com 3
 	addi $t2,$zero,0 #Inicializa t2 com 0
 	addi $t5,$zero,0 #Inicializa t5 com 0
@@ -279,7 +280,43 @@
 	
 	bne $t6, NUM_WORDS, escala_cinza	# repete o Loop enquanto não inserir todas as words em img_body
 	
+	#addi $t1,$zero,2044 # Tamanho da imagem * 4 + 4
+	#add $t4,$zero, 2040 # Tamanho da imagem * 4
+	la $t0, img_body # volta para o inicio da imagem
+	addi $t7,$zero,0 # Reseta t7
+	robert_cross: # Aplica o algoritmo de Robert Cross na imagem
+
+	addi $t5, $zero,0 # Zera t5
+	addi $t2,$zero,4 # Reseto o $t2
+	lbu $t1,0($t0) # Pega o pixal [i,j]
+	lbu $t2,2040($t0) #pega o pixel [i+1,j+1]
+	sub $t3,$t2,$t1 # diferenca entre os valores
+	abs $t3,$t3 # valor absoluto de t3
+	div $t3,$t3,2 #divide por 2
+	mflo $t3 #salva em t3
 	
+	addi $t2,$zero,4 # Reseto o $t2
+	lbu $t1,2036($t0) # Pega o pixal [i,j]
+	lbu $t2,4($t0) #pega o pixel [i+1,j+1]
+	sub $t5,$t2,$t1 # diferenca entre os valores
+	abs $t5,$t5 # valor absoluto de t3
+	div $t5,$t5,2 #divide por 2
+	mflo $t5 #salva em t3	
+	
+	add $t6,$t3,$t5 # Novo valor do pixel
+	
+	addu $t5, $t5, $t6	# Coloca o valor do filtro no $t6
+	sll  $t5, $t5, 8	# Move o valor do filtro para inserir a proxima cor no $t6
+	addu $t5,$t5 $t6	
+	sll $t5,$t5,8
+	addu $t5,$t5 $t6
+	
+	sw $t5, 0($t0) # Altera o pixel original para um em escala cinza
+	
+        addi $t0, $t0, 4			# Incrementa o endereço de img_body em 1 word
+	addi $t7, $t7, 1			# Incremente indice I do loop
+
+	bne $t7, 262143, robert_cross	# repete o Loop enquanto não inserir todas as words em img_body	
 	
 	j fim
 		
