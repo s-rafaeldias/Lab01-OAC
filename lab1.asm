@@ -10,7 +10,7 @@
 	filein:
 		.asciiz	"img.bmp"
 	textMenu:
-		.asciiz 	"Escolha uma das opções abaixo:\n\t[0] Sair\t[1] Blur\t[2] Edge Extractor\t[3] Thresholding\n" # Texto que sera mostrado no menu
+		.asciiz 	"Escolha uma das opções abaixo:\n\t[0] Sair\t[1] Blur\t[2] Edge Extractor\t[3] Thresholding\t[4] Salvar e Sair\t[5] Sair\n" # Texto que sera mostrado no menu
 	textBlur:
 		.asciiz 	"Digite a intensidade do Blur: \n"
 	cls:
@@ -401,14 +401,14 @@
 	beq $v0, 1, blurMenu  # faz o Blur
 
 	beq $v0, 2, edge  # faz o Edge Extractor
-	#jal edge
 
 	beq $v0, 3, thresholding  #faz o Thresholding
-	#jal thresholding
 	
-	beq	$v0, 4, save_img
+	beq $v0, 4, save_img
+	
+	beq $v0, 5, fim
 
-	bgt $v0, 4, notOption
+	bgt $v0, 5, notOption
 #######################################################################
 	blurMenu:
 	la $a0, textBlur
