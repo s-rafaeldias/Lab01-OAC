@@ -15,6 +15,8 @@
 		.asciiz 	"Digite a intensidade do Blur: \n"
 	loadingBlur:
 		.asciiz		"Carregando Blur, por favor espere atÈ o menu aparecer de novo..."
+	textSalvar:
+		.asciiz		"Digite o nome do arquivo de saida (digite a extens„o '.bmp' ao final do seu nome e tem que ter no m·ximo 20 caracteres):\n"
 	cls:
 		.asciiz 	"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" # espa√ßammento para parecer novo menu apos escolha do usuario
 	textMenuError:
@@ -22,7 +24,7 @@
 	textTest:
 		.asciiz 	"\nOp√ß√£o escolhida foi:"
 	fileout:
-		.asciiz	"out.bmp"
+		.space	20
 	header_original:
 		.space	54						# O header possui tamanho de 54 bytes
 
@@ -179,6 +181,17 @@
 ################################### SALVA IMAGEM ###################################
 	save_img:
 	
+	la $a0, textSalvar
+	li $v0, 4
+	syscall
+	
+	li $v0, 8
+	la $a0, fileout
+	li $a1, 20
+	
+	syscall
+	
+	
 	jal		espelha_img
 	jal		inverte_img
 	
@@ -208,9 +221,9 @@
 	jump:
 	# Abre arquivo pra escrita
 	li		$v0, 13
-	la		$a0, fileout
-	li		$a1, 9
-	li		$a2, 0
+	# $a0 = fileout
+	li 		$a1, 9         
+	li 		$a2, 0 
 	syscall
 	
 	move		$t0, $v0
