@@ -11,6 +11,8 @@
 		.asciiz	"img.bmp"
 	textMenu:
 		.asciiz 	"Escolha uma das opções abaixo:\n\t[0] Sair\t[1] Blur\t[2] Edge Extractor\t[3] Thresholding\n" # Texto que sera mostrado no menu
+	textBlur:
+		.asciiz 	"Digite a intensidade do Blur: \n"
 	cls:
 		.asciiz 	"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" # espaçammento para parecer novo menu apos escolha do usuario
 	textMenuError:
@@ -168,10 +170,10 @@
 
 	jal		inverte_img
 	jal		espelha_img
-	jal 		thresholding
-	#jal 		menu
+	#jal 		thresholding
+	jal 		menu
 
-	j		fim
+	#j		fim
 
 ##############################################################
 	# Abre o arquivo de saída
@@ -239,33 +241,33 @@
 	# ---------------------------------------------
 	lw		$t0, img_body			# endereço inicial do img_body
 	addi		$t1, $zero, 0			# Contador de linhas
-	
+
 	move		$t2, $s4				# Quantidade de colunas
 	sll		$t2, $t2, 2			# colunas * 4 (2048)
-	
+
 	loop3:
 	mult		$t1, $t2
 	mflo		$t3					# offset da linha
-				
-	add		$t4, $t0, $t3			# Posição de inicio de linha	
+
+	add		$t4, $t0, $t3			# Posição de inicio de linha
 	add		$t5, $t4, $t2
 	addi		$t5, $t5, -4			# Fim de linha (última word)
-	
+
 	sub_loop3:
 	lw		$t6, 0($t4)			# Carrega pixel do começo da linha
 	lw		$t7, 0($t5)			# Carrega pixel do fim da linha
-	
+
 	# SWAP
-	sw		$t7, 0($t4)	
+	sw		$t7, 0($t4)
 	sw		$t6, 0($t5)
-	
+
 	addi		$t4, $t4, 4
 	addi		$t5, $t5, -4
-	
+
 	blt		$t4, $t5, sub_loop3
 
 	addi		$t1, $t1, 1
-	
+
 	bne		$t1, $s5, loop3
 
 	jr		$ra
@@ -276,30 +278,30 @@
 	addi		$t5, $zero, 0
 	li		$t9, 100				# input do user
 	li		$t8, 3
-	
+
 	loop4:
 	addi		$t5, $t5, 1
-	bgt		$t5, $s6, end		
-	
+	bgt		$t5, $s6, end
+
 	lbu		$t2, 1($t0)			# Carrega R
 	lbu		$t3, 2($t0)			# Carrega G
 	lbu		$t4, 3($t0)			# Carrega B
-	
+
 	# (R + G + B) / 3
 	add		$t2, $t2, $t3
 	add		$t2, $t2, $t4
-	
+
 	div		$t2, $t8
 	mflo		$t2
-	
+
 	blt		$t2, $t9, black
-	
+
 	# White
 	addi		$t2, $zero, 0x00000000
 	sw		$t2, 0($t0)
 	addi		$t0, $t0, 4
 	j		loop4
-	
+
 	black:
 	addi		$t2, $zero, 0x00FFFFFF
 	sw		$t2, 0($t0)
@@ -355,28 +357,202 @@
 
 	beq $v0, 0, fim  # Sai do programa
 
-	beq $v0, 1, teste  # faz o Blur
-	#jal blue
+	beq $v0, 1, blurMenu  # faz o Blur
 
 	beq $v0, 2, edge  # faz o Edge Extractor
-	#jal edge
 
-	beq $v0, 3, teste  #faz o Thresholding
-	#jal thresholding
+	beq $v0, 3, thresholding  #faz o Thresholding
 
 	bgt $v0, 3, notOption
 #######################################################################
-	teste:
-	move $t0, $v0
+	blurMenu:
+	la $a0, textBlur
 	li $v0, 4
-	la $a0, textTest
 	syscall
 
-	li $v0, 1
-	move $a0, $t0
+	li $v0, 5
 	syscall
+	move $a2, $v0
 
-	b menu
+	lw $a0, img_body
+	j blur
+#######################################################################
+	blur:
+
+	beq $a2, 0, menu
+	addi $sp, $sp, -8
+
+	move $t4, $0		# i = 0
+
+	move $t8, $sp
+	addi $t8, $t8, -4	# salva estado da pilha
+
+	loop_coluna:
+	bge $t4, 510, fim_loop_coluna
+
+	move $t5, $0		# j = 0
+
+	move $t3, $a0
+	addi $t3, $t3, 2052	# x= -1; y= -1
+
+	mulo $t7, $t4, 2048
+	add $t3, $t3, $t7	# x = -1; y = -j-1
+
+	loop_linha:
+	bge $t5, 510, fim_loop_linha
+
+	move $a1, $t3
+	jal media_vizinhos		# $t0, $t1, $t2
+
+	addi $sp, $sp, -4
+	sw $v0, ($sp)		# push novo pixel
+
+	addi $t3, $t3, 4	# pixel ++
+	addi $t5, $t5, 1	# j++
+
+	j loop_linha
+	fim_loop_linha:
+
+	addi $t4, $t4, 1	# i++
+
+	j loop_coluna
+	fim_loop_coluna:
+
+	move $sp, $t8		# restora pilha
+
+	move $t4, $0		# i = 0
+
+	aplicar_blur_coluna:
+	bge $t4, 510, fim_aplicar_blur_coluna
+
+	move $t5, $0		# j = 0
+
+	move $t3, $a0
+	addi $t3, $t3, 2052
+
+	#ajusta linha
+	mulo $t7, $t4, 2048
+	add $t3, $t3, $t7
+
+	aplicar_blur_linha:
+	bge $t5, 510, fim_aplicar_blur_linha
+
+	lw $t9, ($sp)		# pop novo pixel
+	sw $t9, ($t3)		# salva novo pixel
+
+	addi $t3, $t3, 4	# pixel ++
+	addi $sp, $sp, -4	# pilha --
+	addi $t5, $t5, 1	# j++
+
+	j aplicar_blur_linha
+	fim_aplicar_blur_linha:
+
+	addi $t4, $t4, 1	# i++
+
+	j aplicar_blur_coluna
+	fim_aplicar_blur_coluna:
+
+	move $sp, $t8		# restora pilha
+	addi $sp, $sp, 4
+
+	addi $a2, $a2, -1
+	j blur
+#######################################################################
+	media_vizinhos:
+
+	# $a1 endere�o pixel
+	# $v0 m�dia vizinhos
+
+	move $t2, $0
+	move $t0, $0
+
+	lbu $t1, -2052($a1)	# pixel 1 B
+	add $t2, $t2, $t1
+
+	lbu $t1, -2048($a1)	#pixel 2 B
+	add $t2, $t2, $t1
+
+	lbu $t1, -2044($a1)	#pixel 3 B
+	add $t2, $t2, $t1
+
+	lbu $t1, -4($a1)	#pixel 4 B
+	add $t2, $t2, $t1
+
+	lbu $t1, 4($a1)		#pixel 6 B
+	add $t2, $t2, $t1
+
+	lbu $t1, 2044($a1)	#pixel 7 B
+	add $t2, $t2, $t1
+
+	lbu $t1, 2048($a1)	#pixel 8 B
+	add $t2, $t2, $t1
+
+	lbu $t1, 2052($a1)	#pixel 9 B
+	add $t2, $t2, $t1
+
+	div $t0, $t2, 8
+	move $t2, $0
+
+	lbu $t1, -2051($a1)	# pixel 1 GREEN
+	add $t2, $t2, $t1
+
+	lbu $t1, -2047($a1)	#pixel 2 R
+	add $t2, $t2, $t1
+
+	lbu $t1, -2043($a1)	#pixel 3 R
+	add $t2, $t2, $t1
+
+	lbu $t1, -3($a1)	#pixel 4 R
+	add $t2, $t2, $t1
+
+	lbu $t1, 5($a1)		#pixel 6 R
+	add $t2, $t2, $t1
+
+	lbu $t1, 2045($a1)	#pixel 7 R
+	add $t2, $t2, $t1
+
+	lbu $t1, 2049($a1)	#pixel 8 R
+	add $t2, $t2, $t1
+
+	lbu $t1, 2053($a1)	#pixel 9 R
+	add $t2, $t2, $t1
+
+	div $t2, $t2, 8
+	sll $t2, $t2, 8
+	or $t0, $t2, $t0
+
+	move $t2, $0
+	lbu $t1, -2050($a1)	# pixel 1 RED
+	add $t2, $t2, $t1
+
+	lbu $t1, -2046($a1)	#pixel 2 G
+	add $t2, $t2, $t1
+
+	lbu $t1, -2042($a1)	#pixel 3 G
+	add $t2, $t2, $t1
+
+	lbu $t1, -2($a1)	#pixel 4 G
+	add $t2, $t2, $t1
+
+	lbu $t1, 6($a1)		#pixel 6 G
+	add $t2, $t2, $t1
+
+	lbu $t1, 2046($a1)	#pixel 7 G
+	add $t2, $t2, $t1
+
+	lbu $t1, 2050($a1)	#pixel 8 G
+	add $t2, $t2, $t1
+
+	lbu $t1, 2054($a1)	#pixel 9 G
+	add $t2, $t2, $t1
+
+	div $t2, $t2, 8
+	sll $t2, $t2, 16
+	or $t0, $t2, $t0
+
+	move $v0, $t0
+
+	jr $ra
 #######################################################################
 	notOption:
 	li $v0, 4
