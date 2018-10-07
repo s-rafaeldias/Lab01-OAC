@@ -11,6 +11,8 @@
 		.asciiz	"img.bmp"
 	textMenu:
 		.asciiz 	"Escolha uma das opÃ§Ãµes abaixo:\n\t[0] Sair\t[1] Blur\t[2] Edge Extractor\t[3] Thresholding\n" # Texto que sera mostrado no menu
+	textBlur:
+		.asciiz 	"Digite a intensidade do Blur: \n"
 	cls:
 		.asciiz 	"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" # espaÃ§ammento para parecer novo menu apos escolha do usuario
 	textMenuError:
@@ -396,8 +398,7 @@
 
 	beq $v0, 0, fim  # Sai do programa
 
-	beq $v0, 1, teste  # faz o Blur
-	#jal blue
+	beq $v0, 1, blurMenu  # faz o Blur
 
 	beq $v0, 2, edge  # faz o Edge Extractor
 	#jal edge
@@ -409,17 +410,195 @@
 
 	bgt $v0, 4, notOption
 #######################################################################
-	teste:
-	move $t0, $v0
+	blurMenu:
+	la $a0, textBlur
 	li $v0, 4
-	la $a0, textTest
 	syscall
-
-	li $v0, 1
-	move $a0, $t0
+	
+	li $v0, 5
 	syscall
+	move $a2, $v0
+	
+	lw $a0, img_body
+	j blur
+#######################################################################
+	blur:
+	
+	beq $a2, 0, menu
+	addi $sp, $sp, -8
 
-	b menu
+	move $t4, $0		# i = 0
+
+	move $t8, $sp		
+	addi $t8, $t8, -4	# salva estado da pilha
+
+	loop_coluna:
+	bge $t4, 510, fim_loop_coluna
+
+	move $t5, $0		# j = 0
+
+	move $t3, $a0
+	addi $t3, $t3, 2052	# x= -1; y= -1
+
+	mulo $t7, $t4, 2048
+	add $t3, $t3, $t7	# x = -1; y = -j-1
+
+	loop_linha:
+	bge $t5, 510, fim_loop_linha
+
+	move $a1, $t3
+	jal media_vizinhos		# $t0, $t1, $t2
+
+	addi $sp, $sp, -4
+	sw $v0, ($sp)		# push novo pixel
+
+	addi $t3, $t3, 4	# pixel ++
+	addi $t5, $t5, 1	# j++	
+
+	j loop_linha
+	fim_loop_linha:
+
+	addi $t4, $t4, 1	# i++
+
+	j loop_coluna
+	fim_loop_coluna:
+
+	move $sp, $t8		# restora pilha
+
+	move $t4, $0		# i = 0
+
+	aplicar_blur_coluna:
+	bge $t4, 510, fim_aplicar_blur_coluna
+
+	move $t5, $0		# j = 0
+
+	move $t3, $a0
+	addi $t3, $t3, 2052
+
+	#ajusta linha
+	mulo $t7, $t4, 2048
+	add $t3, $t3, $t7
+
+	aplicar_blur_linha:
+	bge $t5, 510, fim_aplicar_blur_linha
+
+	lw $t9, ($sp)		# pop novo pixel
+	sw $t9, ($t3)		# salva novo pixel
+
+	addi $t3, $t3, 4	# pixel ++
+	addi $sp, $sp, -4	# pilha --
+	addi $t5, $t5, 1	# j++	
+
+	j aplicar_blur_linha
+	fim_aplicar_blur_linha:
+
+	addi $t4, $t4, 1	# i++
+
+	j aplicar_blur_coluna
+	fim_aplicar_blur_coluna:
+
+	move $sp, $t8		# restora pilha
+	addi $sp, $sp, 4
+
+	addi $a2, $a2, -1
+	j blur
+#######################################################################
+	media_vizinhos: 
+
+	# $a1 endereço pixel
+	# $v0 média vizinhos
+	
+	move $t2, $0
+	move $t0, $0
+
+	lbu $t1, -2052($a1)	# pixel 1 B
+	add $t2, $t2, $t1
+
+	lbu $t1, -2048($a1)	#pixel 2 B
+	add $t2, $t2, $t1
+
+	lbu $t1, -2044($a1)	#pixel 3 B
+	add $t2, $t2, $t1
+
+	lbu $t1, -4($a1)	#pixel 4 B
+	add $t2, $t2, $t1
+
+	lbu $t1, 4($a1)		#pixel 6 B
+	add $t2, $t2, $t1
+
+	lbu $t1, 2044($a1)	#pixel 7 B
+	add $t2, $t2, $t1
+
+	lbu $t1, 2048($a1)	#pixel 8 B
+	add $t2, $t2, $t1
+
+	lbu $t1, 2052($a1)	#pixel 9 B
+	add $t2, $t2, $t1
+
+	div $t0, $t2, 8
+	move $t2, $0
+
+	lbu $t1, -2051($a1)	# pixel 1 GREEN
+	add $t2, $t2, $t1
+
+	lbu $t1, -2047($a1)	#pixel 2 R
+	add $t2, $t2, $t1
+
+	lbu $t1, -2043($a1)	#pixel 3 R
+	add $t2, $t2, $t1
+
+	lbu $t1, -3($a1)	#pixel 4 R
+	add $t2, $t2, $t1
+
+	lbu $t1, 5($a1)		#pixel 6 R
+	add $t2, $t2, $t1
+
+	lbu $t1, 2045($a1)	#pixel 7 R
+	add $t2, $t2, $t1
+
+	lbu $t1, 2049($a1)	#pixel 8 R
+	add $t2, $t2, $t1
+
+	lbu $t1, 2053($a1)	#pixel 9 R
+	add $t2, $t2, $t1
+
+	div $t2, $t2, 8
+	sll $t2, $t2, 8
+	or $t0, $t2, $t0
+
+	move $t2, $0
+	lbu $t1, -2050($a1)	# pixel 1 RED
+	add $t2, $t2, $t1
+
+	lbu $t1, -2046($a1)	#pixel 2 G
+	add $t2, $t2, $t1
+
+	lbu $t1, -2042($a1)	#pixel 3 G
+	add $t2, $t2, $t1
+
+	lbu $t1, -2($a1)	#pixel 4 G
+	add $t2, $t2, $t1
+
+	lbu $t1, 6($a1)		#pixel 6 G
+	add $t2, $t2, $t1
+
+	lbu $t1, 2046($a1)	#pixel 7 G
+	add $t2, $t2, $t1
+
+	lbu $t1, 2050($a1)	#pixel 8 G
+	add $t2, $t2, $t1
+
+	lbu $t1, 2054($a1)	#pixel 9 G
+	add $t2, $t2, $t1
+
+	div $t2, $t2, 8
+	sll $t2, $t2, 16
+	or $t0, $t2, $t0
+
+	move $v0, $t0
+
+	jr $ra
+
 #######################################################################
 	notOption:
 	li $v0, 4
