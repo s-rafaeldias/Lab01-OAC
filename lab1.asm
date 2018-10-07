@@ -14,13 +14,15 @@
 	textBlur:
 		.asciiz 	"Digite a intensidade do Blur: \n"
 	loadingBlur:
-		.asciiz		"Carregando Blur, por favor espere at� o menu aparecer de novo..."
+		.asciiz		"Carregando Blur, por favor espere at� o menu aparecer de novo..."
 	cls:
 		.asciiz 	"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" # espaçammento para parecer novo menu apos escolha do usuario
 	textMenuError:
 		.asciiz 	"\nOpção escolhida inválida, aperta '1' para continuar\n"
 	textTest:
 		.asciiz 	"\nOpção escolhida foi:"
+	textLimiarValue:
+		.asciiz	"\n Digite um valor entre 0 e 255: \n"
 	fileout:
 		.asciiz	"out.bmp"
 	header_original:
@@ -314,10 +316,19 @@
 	jr		$ra
 #######################################################################
 	thresholding:
+	
+	li		$v0, 4
+	la		$a0, textLimiarValue
+	syscall
+	
+	li		$v0, 5
+	syscall
+	move		$t9, $v0
+	
 	lw		$t0, img_body			# Endereço do img_body
 	move		$t1, $s6				# Quantidade de words
 	addi		$t5, $zero, 0
-	li		$t9, 100				# input do user
+	#li		$t9, 100				# input do user
 	li		$t8, 3
 	
 	loop4:
@@ -511,8 +522,8 @@
 #######################################################################
 	media_vizinhos: 
 
-	# $a1 endere�o pixel
-	# $v0 m�dia vizinhos
+	# $a1 endere�o pixel
+	# $v0 m�dia vizinhos
 	
 	move $t2, $0
 	move $t0, $0
