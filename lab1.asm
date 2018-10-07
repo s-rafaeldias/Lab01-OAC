@@ -13,6 +13,8 @@
 		.asciiz 	"Escolha uma das opções abaixo:\n\t[0] Sair\t[1] Blur\t[2] Edge Extractor\t[3] Thresholding\t[4] Salvar e Sair\t[5] Sair\n" # Texto que sera mostrado no menu
 	textBlur:
 		.asciiz 	"Digite a intensidade do Blur: \n"
+	loadingBlur:
+		.asciiz		"Carregando Blur, por favor espere at� o menu aparecer de novo..."
 	cls:
 		.asciiz 	"\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" # espaçammento para parecer novo menu apos escolha do usuario
 	textMenuError:
@@ -419,6 +421,10 @@
 	syscall
 	move $a2, $v0
 	
+	la $a0, loadingBlur
+	li $v0, 4
+	syscall
+	
 	lw $a0, img_body
 	j blur
 #######################################################################
@@ -614,7 +620,7 @@
 	edge:
 
 	addi $t6,$zero,0 #Inicializa indice do loop
-	la $t0, img_body # Carrega endereco do inicio da imagem
+	lw $t0, img_body # Carrega endereco do inicio da imagem
 
 	escala_cinza: #Aplica o Filtro cinza na imagem
 
@@ -650,7 +656,7 @@
 
 	#addi $t1,$zero,2044 # Tamanho da imagem * 4 + 4
 	#add $t4,$zero, 2040 # Tamanho da imagem * 4
-	la $t0, img_body # volta para o inicio da imagem
+	lw $t0, img_body # volta para o inicio da imagem
 	addi $t7,$zero,0 # Reseta t7
 	robert_cross: # Aplica o algoritmo de Robert Cross na imagem
 
@@ -686,7 +692,7 @@
 
 	bne $t7, 262143, robert_cross	# repete o Loop enquanto não inserir todas as words em img_body
 
-	j fim
+	j menu
 
 #######################################################################
 	fim:
