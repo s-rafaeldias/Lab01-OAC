@@ -32,8 +32,8 @@
 	# $s1 = Arquivo de saída
 	# $s2 = File descriptor do arquivo de entrada
 	# $s3 = Tamanho em bytes da imagem original
-	# $s4 = Largura da imagem
-	# $s5 = Comprimento da imagem
+	# $s4 = colunas na imagem
+	# $s5 = ilnhas na imagem
 	# $s6 = Quantidade de words
 	# ---------------------------------------------
 	la		$s0, filein
@@ -64,7 +64,7 @@
 	move		$s3, $v0					# Salva o tamanho da imagem em memória
 
 # ---------------------------------------------
-# Largura				offset: 0x000012 - 4 bytes (1 word)
+# Colunas				offset: 0x000012 - 4 bytes (1 word)
 
 	addi		$a0, $zero, 0x000012		# Offset para o campo FileSize
 	addi		$a1, $zero, 0x000004		# Tamanho do campo a ser lido, em hexa
@@ -73,7 +73,7 @@
 	move		$s4, $v0					# Salva a largura da imagem em memória
 
 # --------------------------------
-# Comprimento			offset: 0x000016 - 4 bytes (1 word)
+# Linhas				offset: 0x000016 - 4 bytes (1 word)
 	addi		$a0, $zero, 0x000016		# Offset para o campo FileSize
 	addi		$a1, $zero, 0x000004		# Tamanho do campo a ser lido, em hexas
 
@@ -167,8 +167,8 @@
 	move		$s6, $t2				# $s6 = quantidade de words em img_body
 
 	jal		inverte_img
-	#jal		espelha_img
-	#jal 		thresholding
+	jal		espelha_img
+	jal 		thresholding
 	#jal 		menu
 
 	j		fim
@@ -228,78 +228,96 @@
 	jr		$ra
 #######################################################################
 	espelha_img:
-	addi		$t0, $zero, 0			# contador de linhas
-	lw		$t1, img_body
-	addi		$t2, $zero, 0			# inicio da linha
-	addi		$t3, $zero, 2044		# fim da linha
-	addi		$t7, $zero, 2048
-
+	# ---------------------------------------------
+	# Espelha imagem
+	# Função de espelhar a imagem no eixo horizontal
+	# $t0 = enderço base do img_body
+	# $t1 = contador de linhas
+	# $t2 = offset para proxima linha (2048)
+	# $t3 = posição inicial da linha (primeira word)
+	# $t4 = posição final de linha (última word)
+	# ---------------------------------------------
+	lw		$t0, img_body			# endereço inicial do img_body
+	addi		$t1, $zero, 0			# Contador de linhas
+	
+	move		$t2, $s4				# Quantidade de colunas
+	sll		$t2, $t2, 2			# colunas * 4 (2048)
+	
 	loop3:
-	addi		$t3, $t2, 2048
-
+	mult		$t1, $t2
+	mflo		$t3					# offset da linha
+				
+	add		$t4, $t0, $t3			# Posição de inicio de linha	
+	add		$t5, $t4, $t2
+	addi		$t5, $t5, -4			# Fim de linha (última word)
+	
 	sub_loop3:
-	lw		$t4, img_body($t2)
-	lw		$t5, img_body($t3)
+	lw		$t6, 0($t4)			# Carrega pixel do começo da linha
+	lw		$t7, 0($t5)			# Carrega pixel do fim da linha
+	
+	# SWAP
+	sw		$t7, 0($t4)	
+	sw		$t6, 0($t5)
+	
+	addi		$t4, $t4, 4
+	addi		$t5, $t5, -4
+	
+	blt		$t4, $t5, sub_loop3
 
-	sw		$t4, img_body($t3)
-	sw		$t5, img_body($t2)
-
-	addi		$t2, $t2, 4
-	addi		$t3, $t3, -4
-
-	blt		$t2, $t3, sub_loop3
-
-
-	addi		$t0, $t0, 1
-	mult		$t0, $t7
-	mflo		$t2
-
-	addi		$t3, $t2, 2048
-
-	blt		$t0, 512, loop3
+	addi		$t1, $t1, 1
+	
+	bne		$t1, $s5, loop3
 
 	jr		$ra
 #######################################################################
 	thresholding:
-	la		$t0, img_body
-	li		$t1, 150			# TODO: Ler esse valor do terminal || Valor de thresholding
-	add		$t2, $zero, $s4		# Quantidade de words
-	addi		$t3, $zero, 0		# indice de loop
-
-	li		$t6, 0x00FFFFFF		# black
-	li		$t7, 0x00000000	# white
-
+	lw		$t0, img_body			# Endereço do img_body
+	move		$t1, $s6				# Quantidade de words
+	addi		$t5, $zero, 0
+	li		$t9, 100				# input do user
+	li		$t8, 3
+	
 	loop4:
-	beq		$t3, $t2, end_loop4
-
-	lbu		$t4, 0($t0)		# Carrega a word
-
-	slt	 	$t5, $t4, $t1		# menor que o thresholding, $t5 = 1
-	beq		$t5, 1, black
-
-	sw		$t7, 0($t0)
+	addi		$t5, $t5, 1
+	bgt		$t5, $s6, end		
+	
+	lbu		$t2, 1($t0)			# Carrega R
+	lbu		$t3, 2($t0)			# Carrega G
+	lbu		$t4, 3($t0)			# Carrega B
+	
+	# (R + G + B) / 3
+	add		$t2, $t2, $t3
+	add		$t2, $t2, $t4
+	
+	div		$t2, $t8
+	mflo		$t2
+	
+	blt		$t2, $t9, black
+	
+	# White
+	addi		$t2, $zero, 0x00000000
+	sw		$t2, 0($t0)
 	addi		$t0, $t0, 4
-	addi		$t3, $t3, 1
-	b		loop4
-
+	j		loop4
+	
 	black:
-	sw		$t6, 0($t0)
+	addi		$t2, $zero, 0x00FFFFFF
+	sw		$t2, 0($t0)
 	addi		$t0, $t0, 4
-	addi		$t3, $t3, 1
-	b		loop4
+	j		loop4
 
-	end_loop4:
+	end:
 
 	jr		$ra
 #######################################################################
-# ---------------------------------------------
-# Função extrai_valor_header
-# IN
-# $a0 = offset do campo a ser acessado
-# $a1 = tamanho do campo a ser lido, em hexa
-# OUT
-# $v0 = valor do campo definido no header
-# ---------------------------------------------
+	# ---------------------------------------------
+	# Função extrai_valor_header
+	# IN
+	# $a0 = offset do campo a ser acessado
+	# $a1 = tamanho do campo a ser lido, em hexa
+	# OUT
+	# $v0 = valor do campo definido no header
+	# ---------------------------------------------
 	extrai_valor_header:
 	la		$t0, header_original			# carrega endereço do header
 
