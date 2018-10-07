@@ -18,7 +18,7 @@
 	textTest:
 		.asciiz 	"\nOpção escolhida foi:"
 	fileout:
-		.space	100
+		.asciiz	"out.bmp"
 	header_original:
 		.space	54						# O header possui tamanho de 54 bytes
 
@@ -171,29 +171,70 @@
 
 	#j		fim
 
-##############################################################
-	# Abre o arquivo de saída
-	move		$a0, $s1 				# $a0 = address of null-terminated string containing filename
-	li		$a1, 1				# $a1 = flags (0 = read-only, 1 = write-only with create, 9 = write-only with create and append)
-	li		$a2, 0				# $a2 = mode
-	li		$v0, 13				# Prepara abertura do arquivo
-	syscall						# $v0 = file descriptor (negative if error)
+############################################################################################################################
+################################### SALVA IMAGEM ###################################
+	save_img:
+	
+	jal		espelha_img
+	jal		inverte_img
+	
+	lw		$t0, img_body
+	lw		$t1, img_original
+	addi		$t9, $zero, 0			# Contador do loop
+	#j		jump
+	loop_save:
+	# Red
+	lbu		$t2, 2($t0)			
+	sb		$t2, 2($t1)
+	
+	# Green
+	lbu		$t2, 1($t0)
+	sb		$t2, 1($t1)
+	
+	# Blue
+	lbu		$t2, 0($t0)
+	sb		$t2, 0($t1)
+	
+	addi		$t0, $t0, 4
+	addi		$t1, $t1, 3
+	addi		$t9, $t9, 1
 
-	# Escreve no arquivo de saída
-	move		$a0, $v0				# $a0 = file descriptor
-	#la		$a1, img_body			# $a1 = address of output buffer
-	li		$a2, NEW_IMAGE_SIZE	# $a2 = number of characters to write
-	li		$v0, 15				# Prepara para escrita do arquivo de saida
-	syscall						# $v0 = number of characters written (negative if error)
-	move		$s3, $v0
-
-	move		$a0, $s3				# File descriptor do arquivo de saída
+	bne		$t9, $s6, loop_save
+	
+	jump:
+	# Abre arquivo pra escrita
+	li		$v0, 13
+	la		$a0, fileout
+	li		$a1, 9
+	li		$a2, 0
+	syscall
+	
+	move		$t0, $v0
+		
+	# Salva header
+	li		$v0, 15
+	move		$a0, $t0
+	la		$a1, header_original
+	li		$a2, 54
+	syscall
+	
+	# Append body (img_original)
+	li		$v0, 15
+	move		$a0, $t0
+	lw		$a1, img_original
+	#li		$a2, 1048648
+	move		$a2, $s3
+	syscall
+	
+	# Fecha arquivo
 	li		$v0, 16
 	syscall
+	
+	# Sair
+	j 		fim
 
-	#j		menu
-	j		fim
-#######################################################################
+############################################################################################################################
+################################### EFEITOS ###################################
 	# ---------------------------------------------
 	# Inverte imagem
 	# Função de inverter a imagem no eixo vertical
@@ -340,7 +381,8 @@
 	move		$v0, $t2
 
 	jr		$ra
-#######################################################################
+############################################################################################################################
+################################### MENU ###################################
 	menu:
 	la $a0, cls   # carregar o espaçamento
 	li $v0, 4     # print do espaçamento
@@ -362,8 +404,10 @@
 
 	beq $v0, 3, thresholding  #faz o Thresholding
 	#jal thresholding
+	
+	beq	$v0, 4, save_img
 
-	bgt $v0, 3, notOption
+	bgt $v0, 4, notOption
 #######################################################################
 	teste:
 	move $t0, $v0
